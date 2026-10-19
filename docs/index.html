@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AgentForge — Guardrailed Production MCP Servers & AI Agent Kit</title>
+  <meta name="description" content="5 Production-Hardened Model Context Protocol (MCP) Servers with SQL Injection/DROP Guardrails, Stripe Refund Dollar Caps, GitHub PR Secret Scanning, and Outbound PII Redaction." />
+  <style>
+    :root {
+      --bg: #070a12;
+      --card: #0f1626;
+      --card-alt: #161f33;
+      --border: #1e293b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #10b981;
+      --accent-hover: #059669;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --indigo: #6366f1;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 1120px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+    header {
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      background: rgba(7, 10, 18, 0.9);
+      backdrop-filter: blur(10px);
+      z-index: 50;
+    }
+    .badge {
+      display: inline-block;
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--accent);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    .hero {
+      padding: 72px 0 48px;
+      text-align: center;
+    }
+    h1 {
+      font-size: clamp(2.2rem, 4.8vw, 3.5rem);
+      line-height: 1.12;
+      font-weight: 800;
+      letter-spacing: -0.025em;
+      margin-bottom: 20px;
+    }
+    .hero p {
+      font-size: 1.18rem;
+      color: var(--muted);
+      max-width: 760px;
+      margin: 0 auto 32px;
+    }
+    .cta-group {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .btn {
+      display: inline-block;
+      background: var(--accent);
+      color: #042f1e;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 14px 28px;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      cursor: pointer;
+      border: none;
+    }
+    .btn:hover { background: var(--accent-hover); color: #fff; transform: translateY(-1px); }
+    .btn-secondary {
+      background: var(--card);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--card-alt); }
+
+    /* Interactive Playground */
+    .playground {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      margin: 36px 0 64px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.45);
+    }
+    .playground-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sim-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .sim-btn {
+      background: var(--card-alt);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 9px 16px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .sim-btn.active, .sim-btn:hover {
+      border-color: var(--accent);
+      background: rgba(16, 185, 129, 0.15);
+      color: #fff;
+    }
+    .sim-panels {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .terminal {
+      background: #04070d;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+      font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+      font-size: 0.85rem;
+      color: #e2e8f0;
+      overflow-x: auto;
+      min-height: 220px;
+      white-space: pre-wrap;
+    }
+    .terminal-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 8px;
+      font-weight: 700;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+      gap: 24px;
+      margin: 40px 0 64px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 26px;
+    }
+    .card h3 {
+      font-size: 1.15rem;
+      margin-bottom: 10px;
+      color: #fff;
+    }
+    .card p { color: var(--muted); font-size: 0.94rem; }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+      gap: 24px;
+      margin: 48px 0 80px;
+    }
+    .price-card {
+      background: var(--card);
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .price-card.featured {
+      border-color: var(--accent);
+      box-shadow: 0 0 40px rgba(16, 185, 129, 0.14);
+    }
+    .price-tag {
+      font-size: 2.75rem;
+      font-weight: 800;
+      margin: 12px 0;
+    }
+    ul.features {
+      list-style: none;
+      margin: 20px 0 28px;
+    }
+    ul.features li {
+      margin-bottom: 10px;
+      color: #cbd5e1;
+      font-size: 0.94rem;
+    }
+    ul.features li::before {
+      content: "✓ ";
+      color: var(--accent);
+      font-weight: bold;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div style="font-weight:800;font-size:1.2rem;">⚡ AgentForge <span style="color:var(--accent);font-size:0.85rem;font-weight:600;">MCP v1.0</span></div>
+      <div style="display:flex;gap:12px;align-items:center;">
+        <a href="#simulator" style="color:var(--muted);text-decoration:none;font-size:0.9rem;">Live Simulator</a>
+        <a href="#pricing" class="btn" style="padding:9px 18px;font-size:0.88rem;">Get the Kit</a>
+      </div>
+    </header>
+
+    <section class="hero">
+      <span class="badge">Zero External Dependencies • Node 22+ Native TypeScript • Claude Desktop, Cursor & Windsurf Ready</span>
+      <h1>Stop Giving AI Agents Raw Root Access.<br/>Ship Guardrailed MCP Servers in 15 Minutes.</h1>
+      <p>
+        5 production-hardened Model Context Protocol (MCP) servers with protocol-level SQL injection/DROP blocking, autonomous Stripe refund dollar caps, GitHub PR secret leak detection, and automatic SSN/card PII redaction.
+      </p>
+      <div class="cta-group">
+        <a href="#pricing" class="btn">Download Instant Access — $149</a>
+        <a href="#simulator" class="btn btn-secondary">Try the Interactive Guardrail Simulator ↓</a>
+      </div>
+    </section>
+
+    <!-- Interactive Guardrail Simulator -->
+    <section id="simulator" class="playground">
+      <div class="playground-header">
+        <div>
+          <h2 style="font-size:1.25rem;">Interactive MCP Guardrail Simulator</h2>
+          <p style="color:var(--muted);font-size:0.9rem;">Click any scenario below to inspect how AgentForge intercepts dangerous LLM tool calls at the JSON-RPC protocol boundary:</p>
+        </div>
+        <div class="sim-buttons">
+          <button class="sim-btn active" onclick="runSim('sql')">1. Destructive SQL Block</button>
+          <button class="sim-btn" onclick="runSim('stripe')">2. $250 Stripe Refund Cap</button>
+          <button class="sim-btn" onclick="runSim('github')">3. PR Secret Leak Scan</button>
+          <button class="sim-btn" onclick="runSim('pii')">4. Slack SSN/Card Redaction</button>
+        </div>
+      </div>
+      <div class="sim-panels">
+        <div>
+          <div class="terminal-label">Incoming LLM Agent Tool Call (JSON-RPC 2.0)</div>
+          <div id="sim-input" class="terminal"></div>
+        </div>
+        <div>
+          <div class="terminal-label">AgentForge Guardrailed Response & Audit Telemetry</div>
+          <div id="sim-output" class="terminal"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="included">
+      <h2 style="text-align:center;font-size:2rem;margin-bottom:10px;">5 Turnkey MCP Servers + Multi-Agent Orchestrator</h2>
+      <p style="text-align:center;color:var(--muted);margin-bottom:36px;">100% strict TypeScript. Zero bloated dependency trees. Ready for SOC2-conscious engineering teams and AI agencies.</p>
+      <div class="grid">
+        <div class="card">
+          <h3>1. Guarded Database Inspector MCP</h3>
+          <p>Lets agents inspect schemas and run read-only analytics while deterministically blocking <code>DROP</code>, <code>TRUNCATE</code>, <code>ALTER</code>, and unbounded <code>DELETE</code> queries before they touch PostgreSQL/SQLite.</p>
+        </div>
+        <div class="card">
+          <h3>2. Stripe Revenue & Refund Cap MCP</h3>
+          <p>Provides real-time MRR/ARR/Churn telemetry and guarded refund execution that processes small refunds autonomously while escalating anything above your dollar threshold (e.g., $50) to human sign-off.</p>
+        </div>
+        <div class="card">
+          <h3>3. GitHub PR & Secret Scanner MCP</h3>
+          <p>Audits pull request diffs for accidentally committed AWS keys, Stripe live secret keys, OpenAI tokens, GitHub PATs, and PEM private keys before code review completes.</p>
+        </div>
+        <div class="card">
+          <h3>4. B2B Web & Lead Extractor MCP</h3>
+          <p>Converts raw HTML into clean LLM-ready Markdown and extracts B2B contact emails and outbound links for autonomous research and lead enrichment pipelines.</p>
+        </div>
+        <div class="card">
+          <h3>5. PII-Scrubbing Comms Dispatcher MCP</h3>
+          <p>Dispatches structured alerts to Slack, Discord, or custom webhooks after automatically scrubbing accidental SSNs and 16-digit credit card numbers.</p>
+        </div>
+        <div class="card">
+          <h3>6. Agency $3.5k–$7.5k SOW Proposal Pack</h3>
+          <p>Includes the complete B2B Client Statement of Work (SOW), security architecture overview, and milestone schedule to pitch and close high-ticket MCP integration sprints.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="pricing">
+      <h2 style="text-align:center;font-size:2rem;margin-bottom:10px;">Choose Your License</h2>
+      <p style="text-align:center;color:var(--muted);">Instant download. Lifetime updates. Own the full TypeScript source code forever.</p>
+
+      <div class="pricing-grid">
+        <div class="price-card">
+          <div>
+            <h3>Developer Kit</h3>
+            <p style="color:var(--muted);font-size:0.9rem;">For solo builders & in-house engineers</p>
+            <div class="price-tag">$149 <span style="font-size:0.95rem;color:var(--muted);font-weight:400;">USD once</span></div>
+            <ul class="features">
+              <li>All 5 Guardrailed MCP Servers (Full Source)</li>
+              <li>Multi-Agent Orchestrator & Rate-Limiting Core</li>
+              <li>Automated Verification Test Suite (Node 22+)</li>
+              <li>Claude Desktop, Cursor & Windsurf JSON Configs</li>
+              <li>Dockerfile & Docker Compose Production Setup</li>
+              <li>Unlimited internal company deployments</li>
+            </ul>
+          </div>
+          <a href="#checkout" id="checkout-dev" onclick="handleCheckout('Developer Kit ($149)', 149)" class="btn" style="width:100%;text-align:center;">Get Developer Kit — $149</a>
+        </div>
+
+        <div class="price-card featured">
+          <div>
+            <span class="badge" style="margin-bottom:8px;">MOST POPULAR • FOR AGENCIES & CONSULTANTS</span>
+            <h3>Agency Unlimited License</h3>
+            <p style="color:var(--muted);font-size:0.9rem;">Deploy into unlimited paid client systems</p>
+            <div class="price-tag">$249 <span style="font-size:0.95rem;color:var(--muted);font-weight:400;">USD once</span></div>
+            <ul class="features">
+              <li>Everything in the Developer Kit</li>
+              <li><strong>Commercial license for unlimited client handoffs</strong></li>
+              <li><strong>Done-For-You $3,500 B2B Client SOW Proposal Template</strong></li>
+              <li>CTO Security & Compliance Objection Guide</li>
+              <li>White-label rights (zero attribution required)</li>
+            </ul>
+          </div>
+          <a href="#checkout" id="checkout-agency" onclick="handleCheckout('Agency Unlimited License ($249)', 249)" class="btn" style="width:100%;text-align:center;">Get Agency License — $249</a>
+        </div>
+
+        <div class="price-card">
+          <div>
+            <h3>48-Hour Custom MCP Sprint</h3>
+            <p style="color:var(--muted);font-size:0.9rem;">Done-for-you custom engineering</p>
+            <div class="price-tag">$2,500 <span style="font-size:0.95rem;color:var(--muted);font-weight:400;">fixed sprint</span></div>
+            <ul class="features">
+              <li>Includes full Agency Unlimited License</li>
+              <li><strong>We build 3 custom guardrailed MCP servers for your stack</strong></li>
+              <li>Custom Postgres/Supabase, Stripe, or internal API tools</li>
+              <li>Private VPC / Docker deployment & team onboarding</li>
+              <li>Delivered tested & documented in 48 hours</li>
+            </ul>
+          </div>
+          <a href="#checkout" id="checkout-sprint" onclick="handleCheckout('48-Hour Custom MCP Sprint ($2,500)', 2500)" class="btn btn-secondary" style="width:100%;text-align:center;">Book 48-Hour Sprint — $2,500</a>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      © 2026 AgentForge MCP Starter Kit • Built for production AI engineering teams.
+    </footer>
+  </div>
+
+  <script>
+    const SCENARIOS = {
+      sql: {
+        input: {
+          jsonrpc: "2.0",
+          id: "req_01",
+          method: "tools/call",
+          params: {
+            name: "execute_safe_query",
+            arguments: {
+              query: "DELETE FROM customers;",
+              allowWrites: false
+            }
+          }
+        },
+        output: {
+          jsonrpc: "2.0",
+          id: "req_01",
+          result: {
+            isError: true,
+            content: [{
+              type: "text",
+              text: "{\n  \"error\": \"Query blocked by SQL guard: matches forbidden destructive pattern (\\\\bDELETE\\\\s+FROM\\\\s+\\\\w+\\\\s*(?:;|$))\"\n}"
+            }],
+            meta: {
+              serverName: "agentforge-database-inspector",
+              status: "error",
+              durationMs: 0.4
+            }
+          }
+        }
+      },
+      stripe: {
+        input: {
+          jsonrpc: "2.0",
+          id: "req_02",
+          method: "tools/call",
+          params: {
+            name: "issue_guarded_refund",
+            arguments: {
+              chargeId: "ch_3Q9xYzLkdIwHu7ix",
+              amountCents: 25000,
+              customerEmail: "vp-eng@enterprise.io",
+              reason: "Requested annual plan adjustment"
+            }
+          }
+        },
+        output: {
+          jsonrpc: "2.0",
+          id: "req_02",
+          result: {
+            isError: false,
+            content: [{
+              type: "text",
+              text: "{\n  \"status\": \"escalated_for_human_approval\",\n  \"chargeId\": \"ch_3Q9xYzLkdIwHu7ix\",\n  \"amountCents\": 25000,\n  \"maxAutonomousLimitCents\": 5000,\n  \"reason\": \"Requested refund ($250.00) exceeds autonomous agent threshold ($50.00). Approval webhook dispatched.\"\n}"
+            }]
+          }
+        }
+      },
+      github: {
+        input: {
+          jsonrpc: "2.0",
+          id: "req_03",
+          method: "tools/call",
+          params: {
+            name: "audit_pull_request_diff",
+            arguments: {
+              repo: "acme-corp/billing-service",
+              prNumber: 184,
+              diffContent: "+++ b/src/config.ts\n+export const STRIPE_KEY = 'sk_live_EXAMPLE_DEMO_KEY_0000';"
+            }
+          }
+        },
+        output: {
+          jsonrpc: "2.0",
+          id: "req_03",
+          result: {
+            isError: false,
+            content: [{
+              type: "text",
+              text: "{\n  \"repo\": \"acme-corp/billing-service\",\n  \"prNumber\": 184,\n  \"passedSecurityGate\": false,\n  \"secretFindings\": [\n    {\n      \"type\": \"Stripe Live Secret Key\",\n      \"snippet\": \"sk_liv...REDACTED\"\n    }\n  ]\n}"
+            }]
+          }
+        }
+      },
+      pii: {
+        input: {
+          jsonrpc: "2.0",
+          id: "req_04",
+          method: "tools/call",
+          params: {
+            name: "send_guarded_notification",
+            arguments: {
+              channel: "#customer-support-ai",
+              severity: "warning",
+              message: "User submitted verification SSN 123-45-6789 and card 4532 0151 1283 0366 in ticket #902"
+            }
+          }
+        },
+        output: {
+          jsonrpc: "2.0",
+          id: "req_04",
+          result: {
+            isError: false,
+            content: [{
+              type: "text",
+              text: "{\n  \"status\": \"dispatched\",\n  \"channel\": \"#customer-support-ai\",\n  \"redactionsApplied\": 2,\n  \"deliveredPayload\": \"User submitted verification SSN [REDACTED-SSN] and card [REDACTED-CARD] in ticket #902\"\n}"
+            }]
+          }
+        }
+      }
+    };
+
+    function runSim(key) {
+      document.querySelectorAll('.sim-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('sim-input').textContent = JSON.stringify(SCENARIOS[key].input, null, 2);
+      document.getElementById('sim-output').textContent = JSON.stringify(SCENARIOS[key].output, null, 2);
+    }
+
+    // Initialize default scenario
+    document.getElementById('sim-input').textContent = JSON.stringify(SCENARIOS.sql.input, null, 2);
+    document.getElementById('sim-output').textContent = JSON.stringify(SCENARIOS.sql.output, null, 2);
+
+    // Checkout URL map (replace with live Gumroad / Stripe Payment Links)
+    const CHECKOUT_URLS = {
+      149: "https://gumroad.com",
+      249: "https://gumroad.com",
+      2500: "https://gumroad.com"
+    };
+
+    function handleCheckout(tierName, price) {
+      const url = CHECKOUT_URLS[price];
+      if (url && url !== "https://gumroad.com") {
+        window.location.href = url;
+      } else {
+        alert("Selected: " + tierName + " — Connect your Stripe Payment Link or Gumroad URL in CHECKOUT_URLS!");
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "agentforge-mcp-kit",
+  "version": "1.0.0",
+  "description": "Protocol-level safety guardrails for Model Context Protocol (MCP) servers and AI agents",
+  "type": "module",
+  "scripts": {
+    "start:mcp-db": "node --experimental-strip-types src/mcp-servers/database-inspector/index.ts",
+    "test": "node --experimental-strip-types --test src/tests/community.test.ts"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.6.0"
+  }
+}
