@@ -603,19 +603,17 @@
     document.getElementById('sim-input').value = JSON.stringify(SCENARIO_INPUTS.sql, null, 2);
     evaluateLiveInput();
 
-    // Checkout URL map (replace with live Gumroad / Stripe Payment Links)
+    // Checkout URL map (live Gumroad checkout)
     const CHECKOUT_URLS = {
-      149: "https://gumroad.com",
-      249: "https://gumroad.com",
-      2500: "https://gumroad.com"
+      149: "https://strobeck.gumroad.com/l/agentforge-mcp-kit",
+      249: "https://strobeck.gumroad.com/l/agentforge-mcp-kit",
+      2500: "https://strobeck.gumroad.com/l/agentforge-mcp-kit"
     };
 
     function handleCheckout(tierName, price) {
       const url = CHECKOUT_URLS[price];
-      if (url && url !== "https://gumroad.com") {
+      if (url) {
         window.location.href = url;
-      } else {
-        alert("Selected: " + tierName + " — Connect your Stripe Payment Link or Gumroad URL in CHECKOUT_URLS!");
       }
     }
   </script>

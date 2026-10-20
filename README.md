@@ -48,4 +48,5 @@ npm test
 | **Unlimited Paid Client Deployments + White-Label Rights** | ❌ | ❌ | ✅ |
 | **B2B Agency \$3,500–\$7,500 Client SOW Proposal Template** | ❌ | ❌ | ✅ |
 
-👉 **[Get the Complete Pro or Agency Kit on our Official Page →](https://krstrobe.github.io/agentforge-mcp-kit/#pricing)**
+👉 **[Get the Complete Pro or Agency Kit on Gumroad (`strobeck.gumroad.com/l/agentforge-mcp-kit`) →](https://strobeck.gumroad.com/l/agentforge-mcp-kit)**  
+👉 **[Try the Interactive Live Browser Simulator →](https://krstrobe.github.io/agentforge-mcp-kit/)**
