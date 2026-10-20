@@ -268,11 +268,11 @@
       </div>
       <div class="sim-panels">
         <div>
-          <div class="terminal-label">Incoming LLM Agent Tool Call (JSON-RPC 2.0)</div>
-          <div id="sim-input" class="terminal"></div>
+          <div class="terminal-label">Incoming LLM Agent Tool Call (Editable JSON-RPC 2.0 — Try Changing the Input!)</div>
+          <textarea id="sim-input" class="terminal" style="width:100%;resize:vertical;border:1px solid #334155;" oninput="evaluateLiveInput()"></textarea>
         </div>
         <div>
-          <div class="terminal-label">AgentForge Guardrailed Response & Audit Telemetry</div>
+          <div class="terminal-label">Live Guardrail Engine Output (Evaluated in Real Time)</div>
           <div id="sim-output" class="terminal"></div>
         </div>
       </div>
@@ -284,11 +284,11 @@
       <div class="grid">
         <div class="card">
           <h3>1. Guarded Database Inspector MCP</h3>
-          <p>Lets agents inspect schemas and run read-only analytics while deterministically blocking <code>DROP</code>, <code>TRUNCATE</code>, <code>ALTER</code>, and unbounded <code>DELETE</code> queries before they touch PostgreSQL/SQLite.</p>
+          <p>Connects to SQLite/Postgres and runs read-only analytics while deterministically blocking <code>DROP</code>, <code>TRUNCATE</code>, <code>ALTER</code>, and unbounded <code>DELETE</code> queries before they touch the DB engine.</p>
         </div>
         <div class="card">
           <h3>2. Stripe Revenue & Refund Cap MCP</h3>
-          <p>Provides real-time MRR/ARR/Churn telemetry and guarded refund execution that processes small refunds autonomously while escalating anything above your dollar threshold (e.g., $50) to human sign-off.</p>
+          <p>Provides real-time MRR/ARR/Churn telemetry and guarded refund execution that processes small refunds autonomously via Stripe REST API while escalating anything above your dollar cap (e.g., $50) to human sign-off.</p>
         </div>
         <div class="card">
           <h3>3. GitHub PR & Secret Scanner MCP</h3>
@@ -372,128 +372,233 @@
   </div>
 
   <script>
-    const SCENARIOS = {
+    const SCENARIO_INPUTS = {
       sql: {
-        input: {
-          jsonrpc: "2.0",
-          id: "req_01",
-          method: "tools/call",
-          params: {
-            name: "execute_safe_query",
-            arguments: {
-              query: "DELETE FROM customers;",
-              allowWrites: false
-            }
-          }
-        },
-        output: {
-          jsonrpc: "2.0",
-          id: "req_01",
-          result: {
-            isError: true,
-            content: [{
-              type: "text",
-              text: "{\n  \"error\": \"Query blocked by SQL guard: matches forbidden destructive pattern (\\\\bDELETE\\\\s+FROM\\\\s+\\\\w+\\\\s*(?:;|$))\"\n}"
-            }],
-            meta: {
-              serverName: "agentforge-database-inspector",
-              status: "error",
-              durationMs: 0.4
-            }
+        jsonrpc: "2.0",
+        id: "req_01",
+        method: "tools/call",
+        params: {
+          name: "execute_safe_query",
+          arguments: {
+            query: "DELETE FROM customers;",
+            allowWrites: false
           }
         }
       },
       stripe: {
-        input: {
-          jsonrpc: "2.0",
-          id: "req_02",
-          method: "tools/call",
-          params: {
-            name: "issue_guarded_refund",
-            arguments: {
-              chargeId: "ch_3Q9xYzLkdIwHu7ix",
-              amountCents: 25000,
-              customerEmail: "vp-eng@enterprise.io",
-              reason: "Requested annual plan adjustment"
-            }
-          }
-        },
-        output: {
-          jsonrpc: "2.0",
-          id: "req_02",
-          result: {
-            isError: false,
-            content: [{
-              type: "text",
-              text: "{\n  \"status\": \"escalated_for_human_approval\",\n  \"chargeId\": \"ch_3Q9xYzLkdIwHu7ix\",\n  \"amountCents\": 25000,\n  \"maxAutonomousLimitCents\": 5000,\n  \"reason\": \"Requested refund ($250.00) exceeds autonomous agent threshold ($50.00). Approval webhook dispatched.\"\n}"
-            }]
+        jsonrpc: "2.0",
+        id: "req_02",
+        method: "tools/call",
+        params: {
+          name: "issue_guarded_refund",
+          arguments: {
+            chargeId: "ch_3Q9xYzLkdIwHu7ix",
+            amountCents: 25000,
+            customerEmail: "vp-eng@enterprise.io",
+            reason: "Requested annual plan adjustment"
           }
         }
       },
       github: {
-        input: {
-          jsonrpc: "2.0",
-          id: "req_03",
-          method: "tools/call",
-          params: {
-            name: "audit_pull_request_diff",
-            arguments: {
-              repo: "acme-corp/billing-service",
-              prNumber: 184,
-              diffContent: "+++ b/src/config.ts\n+export const STRIPE_KEY = 'sk_live_EXAMPLE_DEMO_KEY_0000';"
-            }
-          }
-        },
-        output: {
-          jsonrpc: "2.0",
-          id: "req_03",
-          result: {
-            isError: false,
-            content: [{
-              type: "text",
-              text: "{\n  \"repo\": \"acme-corp/billing-service\",\n  \"prNumber\": 184,\n  \"passedSecurityGate\": false,\n  \"secretFindings\": [\n    {\n      \"type\": \"Stripe Live Secret Key\",\n      \"snippet\": \"sk_liv...REDACTED\"\n    }\n  ]\n}"
-            }]
+        jsonrpc: "2.0",
+        id: "req_03",
+        method: "tools/call",
+        params: {
+          name: "audit_pull_request_diff",
+          arguments: {
+            repo: "acme-corp/billing-service",
+            prNumber: 184,
+            diffContent: "+++ b/src/config.ts\n+export const AWS_KEY = 'AKIAIOSFODNN7EXAMPLE';"
           }
         }
       },
       pii: {
-        input: {
-          jsonrpc: "2.0",
-          id: "req_04",
-          method: "tools/call",
-          params: {
-            name: "send_guarded_notification",
-            arguments: {
-              channel: "#customer-support-ai",
-              severity: "warning",
-              message: "User submitted verification SSN 123-45-6789 and card 4532 0151 1283 0366 in ticket #902"
-            }
-          }
-        },
-        output: {
-          jsonrpc: "2.0",
-          id: "req_04",
-          result: {
-            isError: false,
-            content: [{
-              type: "text",
-              text: "{\n  \"status\": \"dispatched\",\n  \"channel\": \"#customer-support-ai\",\n  \"redactionsApplied\": 2,\n  \"deliveredPayload\": \"User submitted verification SSN [REDACTED-SSN] and card [REDACTED-CARD] in ticket #902\"\n}"
-            }]
+        jsonrpc: "2.0",
+        id: "req_04",
+        method: "tools/call",
+        params: {
+          name: "send_guarded_notification",
+          arguments: {
+            channel: "#customer-support-ai",
+            severity: "warning",
+            message: "User submitted verification SSN 123-45-6789 and card 4532 0151 1283 0366 in ticket #902"
           }
         }
       }
     };
 
+    // Actual guardrail logic running live in the browser
+    function evaluateToolCall(req) {
+      const tool = req?.params?.name;
+      const args = req?.params?.arguments || {};
+
+      if (tool === "execute_safe_query") {
+        const sql = String(args.query || "").trim();
+        const forbidden = [
+          /\bDROP\s+(TABLE|DATABASE|SCHEMA|INDEX|VIEW)\b/i,
+          /\bTRUNCATE\b/i,
+          /\bALTER\s+(TABLE|DATABASE|ROLE)\b/i,
+          /\bDELETE\s+FROM\s+\w+\s*(?:;|$)/i
+        ];
+        for (const pat of forbidden) {
+          if (pat.test(sql)) {
+            return {
+              jsonrpc: "2.0",
+              id: req.id,
+              result: {
+                isError: true,
+                content: [{ type: "text", text: JSON.stringify({ error: `Query blocked by SQL guard: matches forbidden destructive pattern (${pat.source})` }, null, 2) }]
+              }
+            };
+          }
+        }
+        if (!args.allowWrites && /\b(INSERT|UPDATE|DELETE|CREATE|REPLACE)\b/i.test(sql)) {
+          return {
+            jsonrpc: "2.0",
+            id: req.id,
+            result: {
+              isError: true,
+              content: [{ type: "text", text: JSON.stringify({ error: "Write operations are disabled in read-only mode." }, null, 2) }]
+            }
+          };
+        }
+        return {
+          jsonrpc: "2.0",
+          id: req.id,
+          result: {
+            isError: false,
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                status: "executed",
+                sanitizedQuery: /\bLIMIT\s+\d+/i.test(sql) ? sql : sql.replace(/;\s*$/, "") + " LIMIT 100",
+                rows: [
+                  { id: 1, email: "cto@acme-ai.io", plan_tier: "agency", mrr_usd: 249 },
+                  { id: 2, email: "founder@launchfast.dev", plan_tier: "pro", mrr_usd: 149 }
+                ]
+              }, null, 2)
+            }]
+          }
+        };
+      }
+
+      if (tool === "issue_guarded_refund") {
+        const amountCents = Number(args.amountCents || 0);
+        const maxCap = 5000;
+        if (amountCents > maxCap) {
+          return {
+            jsonrpc: "2.0",
+            id: req.id,
+            result: {
+              isError: false,
+              content: [{
+                type: "text",
+                text: JSON.stringify({
+                  status: "escalated_for_human_approval",
+                  chargeId: args.chargeId,
+                  amountCents,
+                  maxAutonomousLimitCents: maxCap,
+                  reason: `Requested refund ($${(amountCents / 100).toFixed(2)}) exceeds autonomous agent threshold ($50.00). Blocked for human sign-off.`
+                }, null, 2)
+              }]
+            }
+          };
+        }
+        return {
+          jsonrpc: "2.0",
+          id: req.id,
+          result: {
+            isError: false,
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                status: "refund_processed",
+                refundId: "re_live_verified",
+                chargeId: args.chargeId,
+                amountCents
+              }, null, 2)
+            }]
+          }
+        };
+      }
+
+      if (tool === "audit_pull_request_diff") {
+        const diff = String(args.diffContent || "");
+        const patterns = [
+          { name: "AWS Access Key", regex: /AKIA[0-9A-Z]{16}/g },
+          { name: "Stripe Live Secret Key", regex: /sk_live_[0-9a-zA-Z_]{10,}/g },
+          { name: "GitHub PAT", regex: /ghp_[0-9a-zA-Z]{20,}/g }
+        ];
+        const findings = [];
+        for (const p of patterns) {
+          const m = diff.match(p.regex);
+          if (m) m.forEach(hit => findings.push({ type: p.name, snippet: hit.slice(0, 6) + "...REDACTED" }));
+        }
+        return {
+          jsonrpc: "2.0",
+          id: req.id,
+          result: {
+            isError: false,
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                repo: args.repo,
+                prNumber: args.prNumber,
+                passedSecurityGate: findings.length === 0,
+                secretFindings: findings
+              }, null, 2)
+            }]
+          }
+        };
+      }
+
+      if (tool === "send_guarded_notification") {
+        let count = 0;
+        const msg = String(args.message || "")
+          .replace(/\b\d{3}-\d{2}-\d{4}\b/g, () => { count++; return "[REDACTED-SSN]"; })
+          .replace(/\b(?:\d[ -]*?){13,16}\b/g, () => { count++; return "[REDACTED-CARD]"; });
+        return {
+          jsonrpc: "2.0",
+          id: req.id,
+          result: {
+            isError: false,
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                status: "dispatched",
+                channel: args.channel,
+                redactionsApplied: count,
+                deliveredPayload: msg
+              }, null, 2)
+            }]
+          }
+        };
+      }
+
+      return { jsonrpc: "2.0", id: req?.id || null, error: { code: -32601, message: "Unknown tool name" } };
+    }
+
+    function evaluateLiveInput() {
+      const raw = document.getElementById('sim-input').value;
+      try {
+        const parsed = JSON.parse(raw);
+        const out = evaluateToolCall(parsed);
+        document.getElementById('sim-output').textContent = JSON.stringify(out, null, 2);
+      } catch (e) {
+        document.getElementById('sim-output').textContent = "// Invalid JSON syntax: " + e.message;
+      }
+    }
+
     function runSim(key) {
       document.querySelectorAll('.sim-btn').forEach(btn => btn.classList.remove('active'));
       event.target.classList.add('active');
-      document.getElementById('sim-input').textContent = JSON.stringify(SCENARIOS[key].input, null, 2);
-      document.getElementById('sim-output').textContent = JSON.stringify(SCENARIOS[key].output, null, 2);
+      document.getElementById('sim-input').value = JSON.stringify(SCENARIO_INPUTS[key], null, 2);
+      evaluateLiveInput();
     }
 
     // Initialize default scenario
-    document.getElementById('sim-input').textContent = JSON.stringify(SCENARIOS.sql.input, null, 2);
-    document.getElementById('sim-output').textContent = JSON.stringify(SCENARIOS.sql.output, null, 2);
+    document.getElementById('sim-input').value = JSON.stringify(SCENARIO_INPUTS.sql, null, 2);
+    evaluateLiveInput();
 
     // Checkout URL map (replace with live Gumroad / Stripe Payment Links)
     const CHECKOUT_URLS = {

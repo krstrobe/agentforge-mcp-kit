@@ -1,9 +1,11 @@
+import { DatabaseSync } from "node:sqlite";
 import { ProductionMCPServer } from "../../core/mcp-server.ts";
 
 /**
  * MCP Server 1: Database Inspector & Safe SQL Query Guard
- * Prevents destructive SQL operations (DROP, TRUNCATE, unbounded DELETE/UPDATE)
- * while allowing AI agents to inspect schemas, explain query plans, and run read-only analytics.
+ * Connects to a real SQLite database (via process.env.SQLITE_DB_PATH or an initialized local DB)
+ * and enforces strict protocol-level SQL guardrails blocking DROP, TRUNCATE, ALTER,
+ * and unbounded DELETE/UPDATE queries before they ever reach the database engine.
  */
 
 const FORBIDDEN_SQL_PATTERNS = [
@@ -40,7 +42,41 @@ export function validateSafeSql(sql: string, allowWrites = false): { safe: boole
   return { safe: true };
 }
 
-export function createDatabaseInspectorServer(): ProductionMCPServer {
+export function createInitializedDatabase(dbPath = process.env.SQLITE_DB_PATH || ":memory:"): DatabaseSync {
+  const db = new DatabaseSync(dbPath);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS customers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT UNIQUE NOT NULL,
+      plan_tier TEXT NOT NULL,
+      mrr_usd INTEGER NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS kpis (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      metric TEXT UNIQUE NOT NULL,
+      value INTEGER NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+  `);
+
+  const countRow = db.prepare("SELECT COUNT(*) as cnt FROM customers").get() as { cnt: number };
+  if (countRow.cnt === 0) {
+    db.exec(`
+      INSERT INTO customers (email, plan_tier, mrr_usd, created_at) VALUES
+        ('cto@acme-ai.io', 'agency', 249, '2026-10-15T10:00:00Z'),
+        ('founder@launchfast.dev', 'pro', 149, '2026-10-17T14:30:00Z'),
+        ('eng@finops-cloud.com', 'enterprise', 2500, '2026-10-18T09:15:00Z');
+      INSERT INTO kpis (metric, value, updated_at) VALUES
+        ('active_subscriptions', 142, '2026-10-19T12:00:00Z'),
+        ('monthly_recurring_revenue_usd', 21450, '2026-10-19T12:00:00Z');
+    `);
+  }
+  return db;
+}
+
+export function createDatabaseInspectorServer(customDb?: DatabaseSync): ProductionMCPServer {
+  const db = customDb ?? createInitializedDatabase();
   const server = new ProductionMCPServer("agentforge-database-inspector", "1.0.0", {
     maxRequestsPerMinute: 120,
   });
@@ -51,7 +87,7 @@ export function createDatabaseInspectorServer(): ProductionMCPServer {
   >({
     name: "execute_safe_query",
     description:
-      "Validates and executes a SQL query against the configured PostgreSQL/SQLite database with automatic read-only guardrails and row limits.",
+      "Validates and executes a real SQL query against the SQLite database with automatic read-only guardrails and row limits.",
     inputSchema: {
       type: "object",
       properties: {
@@ -67,59 +103,57 @@ export function createDatabaseInspectorServer(): ProductionMCPServer {
         throw new Error(validation.reason);
       }
 
+      const isSelect = /^\s*SELECT\b/i.test(query);
       const boundedQuery =
-        /\bLIMIT\s+\d+/i.test(query) || !/^\s*SELECT\b/i.test(query)
-          ? query
+        /\bLIMIT\s+\d+/i.test(query) || !isSelect
+          ? query.replace(/;\s*$/, "")
           : `${query.replace(/;\s*$/, "")} LIMIT ${Math.min(maxRows, 1000)}`;
 
-      return {
-        status: "executed",
-        requestId: ctx.requestId,
-        sanitizedQuery: boundedQuery,
-        rowLimitApplied: Math.min(maxRows, 1000),
-        connectionTarget: process.env.DATABASE_URL ? "configured-db" : "in-memory-sandbox",
-        rows: [
-          { id: 1, metric: "active_subscriptions", value: 142, updated_at: "2026-10-19T12:00:00Z" },
-          { id: 2, metric: "monthly_recurring_revenue_usd", value: 21450, updated_at: "2026-10-19T12:00:00Z" },
-        ],
-      };
+      if (isSelect) {
+        const rows = db.prepare(boundedQuery).all();
+        return {
+          status: "executed",
+          requestId: ctx.requestId,
+          sanitizedQuery: boundedQuery,
+          rowLimitApplied: Math.min(maxRows, 1000),
+          rowCount: rows.length,
+          rows,
+        };
+      } else {
+        const result = db.prepare(boundedQuery).run();
+        return {
+          status: "executed_mutation",
+          requestId: ctx.requestId,
+          sanitizedQuery: boundedQuery,
+          changes: result.changes,
+          lastInsertRowid: Number(result.lastInsertRowid),
+        };
+      }
     },
   });
 
-  server.registerTool<{ schemaName?: string }, Record<string, unknown>>({
+  server.registerTool<{ tableName?: string }, Record<string, unknown>>({
     name: "inspect_schema",
-    description: "Returns table definitions, column types, foreign keys, and indexes for agent context.",
+    description: "Queries live sqlite_master metadata to return real table definitions and column schemas.",
     inputSchema: {
       type: "object",
       properties: {
-        schemaName: { type: "string", description: "Database schema name (default: public)" },
+        tableName: { type: "string", description: "Optional specific table name to inspect" },
       },
     },
-    handler: async ({ schemaName = "public" }) => {
+    handler: async ({ tableName }) => {
+      const tables = db
+        .prepare(
+          tableName
+            ? "SELECT name, sql FROM sqlite_master WHERE type='table' AND name = ?"
+            : "SELECT name, sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        )
+        .all(...(tableName ? [tableName] : [])) as Array<{ name: string; sql: string }>;
+
       return {
-        schema: schemaName,
-        tables: [
-          {
-            name: "customers",
-            columns: [
-              { name: "id", type: "uuid", primaryKey: true },
-              { name: "email", type: "varchar(255)", unique: true },
-              { name: "plan_tier", type: "varchar(50)" },
-              { name: "mrr_cents", type: "integer" },
-              { name: "created_at", type: "timestamptz" },
-            ],
-          },
-          {
-            name: "agent_runs",
-            columns: [
-              { name: "id", type: "uuid", primaryKey: true },
-              { name: "customer_id", type: "uuid", references: "customers.id" },
-              { name: "tokens_used", type: "integer" },
-              { name: "cost_usd", type: "numeric(10,4)" },
-              { name: "status", type: "varchar(32)" },
-            ],
-          },
-        ],
+        engine: "node:sqlite (DatabaseSync)",
+        tableCount: tables.length,
+        tables,
       };
     },
   });
